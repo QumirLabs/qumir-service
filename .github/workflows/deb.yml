@@ -10,6 +10,9 @@ on:
         type: boolean
         default: false
 
+permissions:
+  contents: read
+
 jobs:
   build:
     strategy:
@@ -67,7 +70,7 @@ jobs:
         path: build/*.deb
 
   release:
-    if: inputs.publish
+    if: inputs.publish && github.ref == 'refs/heads/main'
     needs: build
     runs-on: ubuntu-24.04
     permissions:
