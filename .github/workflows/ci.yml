@@ -6,6 +6,9 @@ on:
   pull_request:
     branches: [ main ]
 
+permissions:
+  contents: read
+
 env:
   # Open question 5: the compiler is built from this qumir commit until a qumir release
   # ships share/qumir/js (the 1.1.0 package); then the qumirc job becomes a .deb download.
@@ -138,8 +141,8 @@ jobs:
     - name: check the endpoints
       run: |
         curl -sf localhost:8080/api/version
-        curl -sf localhost:8080/api/examples | grep -q '"'
-        curl -sf localhost:8080/runtime/loader.js | grep -q export
+        curl -sf localhost:8080/api/examples | python3 -c 'import json,sys; assert json.load(sys.stdin)["groups"]'
+        curl -sf localhost:8080/runtime/loader.js | grep -q 'export async function loadRuntime'
         printf 'алг\nнач\n    вывод "Привет", нс\nкон\n' > hello.kum
         curl -sf -X POST -H 'Content-Type: text/plain' --data-binary @hello.kum \
           localhost:8080/api/compile-wasm -o hello.wasm
