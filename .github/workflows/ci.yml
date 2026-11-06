@@ -143,7 +143,7 @@ jobs:
         printf 'алг\nнач\n    вывод "Привет", нс\nкон\n' > hello.kum
         curl -sf -X POST -H 'Content-Type: text/plain' --data-binary @hello.kum \
           localhost:8080/api/compile-wasm -o hello.wasm
-        head -c 4 hello.wasm | grep -q wasm
+        head -c 4 hello.wasm | grep -aq asm
     - name: server log
       if: failure()
       run: cat server.log
