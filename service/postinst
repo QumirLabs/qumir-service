@@ -1,8 +1,8 @@
 #!/bin/sh
 set -e
 
-# The data directory itself is left to the administrator; only the account the
-# service runs under is created here.
+# Creates the account the service runs under and the data directories this
+# package owns; qumir-private creates its own guestbook directory the same way.
 if [ "$1" = "configure" ]; then
     if ! getent passwd qumir >/dev/null; then
         adduser --system --group --no-create-home \
@@ -10,6 +10,7 @@ if [ "$1" = "configure" ]; then
                 --gecos "Qumir playground service" \
                 qumir
     fi
+    install -d -o qumir -g qumir -m 0755 /var/lib/qumir-data /var/lib/qumir-data/shared
 fi
 
 if [ -d /run/systemd/system ]; then

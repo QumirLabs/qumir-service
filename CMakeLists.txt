@@ -5,7 +5,7 @@ set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 option(QUMIR_USE_CCACHE "Compile through ccache when it is installed" ON)
 option(QUMIR_LLVM_LINK_SHARED "Link the shared libLLVM instead of static LLVM archives" OFF)
 set(QUMIR_SERVICE_BUILD_NUMBER "0" CACHE STRING "Build number, becomes the Debian revision after the hyphen")
-set(QUMIR_DATA_DIR "/var/lib/qumir-data" CACHE STRING "Writable data directory, created by the administrator")
+set(QUMIR_DATA_DIR "/var/lib/qumir-data" CACHE STRING "Writable data directory, created by postinst (which hardcodes the default)")
 
 # Build number 0 means a working copy; anything else comes from CI and names a package.
 string(TIMESTAMP QUMIR_SERVICE_BUILD_DATE "%Y-%m-%d" UTC)
