@@ -39,10 +39,8 @@ jobs:
         submodules: recursive
         # the documentation screenshots must be real files, not LFS pointers
         lfs: true
-    - name: apt-get update
-      run: sudo apt-get update
     - name: Install packages
-      run: sudo apt-get install ccache cmake ninja-build llvm-20-dev liburing-dev lld nodejs g++-14
+      run: bash .github/scripts/apt-install.sh ccache cmake ninja-build llvm-20-dev liburing-dev lld nodejs g++-14
     - name: Set up ccache
       uses: Chocobo1/setup-ccache-action@a4d08616f5b614053bce228ddf881592f69d61d4 # v1.5.9
       with:
@@ -80,10 +78,12 @@ jobs:
       with:
         repository: QumirLabs/qumir
         ref: ${{ env.QUMIR_REF }}
-    - name: apt-get update
-      run: sudo apt-get update
+    - uses: actions/checkout@v4
+      with:
+        path: ci-scripts
+        sparse-checkout: .github/scripts
     - name: Install packages
-      run: sudo apt-get install ccache cmake ninja-build llvm-20-dev libreadline-dev lld g++-14
+      run: bash ci-scripts/.github/scripts/apt-install.sh ccache cmake ninja-build llvm-20-dev libreadline-dev lld g++-14
     - name: Set up ccache
       uses: Chocobo1/setup-ccache-action@a4d08616f5b614053bce228ddf881592f69d61d4 # v1.5.9
       with:
@@ -117,10 +117,8 @@ jobs:
 
     steps:
     - uses: actions/checkout@v4
-    - name: apt-get update
-      run: sudo apt-get update
     - name: Install packages
-      run: sudo apt-get install llvm-20 lld liburing2
+      run: bash .github/scripts/apt-install.sh llvm-20 lld liburing2
     - uses: actions/download-artifact@v4
       with:
         path: pkg
