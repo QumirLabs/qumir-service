@@ -1,0 +1,149 @@
+name: CI
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+env:
+  # Open question 5: the compiler is built from this qumir commit until a qumir release
+  # ships share/qumir/js (the 1.1.0 package); then the qumirc job becomes a .deb download.
+  QUMIR_REF: ff0f797c2363c07ba53d710006ee3cdc862aa211
+
+jobs:
+  text-check:
+    runs-on: ubuntu-latest
+
+    steps:
+    - uses: actions/checkout@v4
+      with:
+        fetch-depth: 0
+    - name: Check comments and invisible characters
+      run: python3 tools/check_text.py
+    - name: Check commit messages
+      env:
+        BASE: ${{ github.event.pull_request.base.sha || github.event.before }}
+        HEAD: ${{ github.event.pull_request.head.sha || github.sha }}
+      run: python3 tools/check_commits.py "$BASE..$HEAD"
+
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+    - uses: actions/checkout@v4
+      with:
+        submodules: recursive
+        # the documentation screenshots must be real files, not LFS pointers
+        lfs: true
+    - name: apt-get update
+      run: sudo apt-get update
+    - name: Install packages
+      run: sudo apt-get install ccache cmake ninja-build llvm-20-dev liburing-dev lld nodejs g++-14
+    - name: Set up ccache
+      uses: Chocobo1/setup-ccache-action@a4d08616f5b614053bce228ddf881592f69d61d4 # v1.5.9
+      with:
+        install_ccache: false
+        update_packager_index: false
+        prepend_symlinks_to_path: false
+        # Only pushes to main save the cache; pull requests restore it.
+        store_cache: ${{ github.event_name == 'push' }}
+        remove_stale_cache: false
+        ccache_options: |
+          max_size=2G
+    - name: configure
+      run: |
+        cmake -B build -G Ninja -DCMAKE_BUILD_TYPE=Debug \
+          -DLLVM_DIR="$(llvm-config-20 --cmakedir)" \
+          -DCMAKE_PREFIX_PATH="$(llvm-config-20 --prefix)" \
+          -DCMAKE_CXX_COMPILER=g++-14 \
+          -DCMAKE_C_COMPILER=gcc-14 \
+          -DCMAKE_C_COMPILER_LAUNCHER=ccache \
+          -DCMAKE_CXX_COMPILER_LAUNCHER=ccache
+    - name: make
+      run: cmake --build build
+    - name: Keep the server for the smoke test
+      run: tar -C build -czf server.tar.gz service/server
+    - uses: actions/upload-artifact@v4
+      with:
+        name: server
+        path: server.tar.gz
+
+  qumirc:
+    runs-on: ubuntu-latest
+
+    steps:
+    - uses: actions/checkout@v4
+      with:
+        repository: QumirLabs/qumir
+        ref: ${{ env.QUMIR_REF }}
+    - name: apt-get update
+      run: sudo apt-get update
+    - name: Install packages
+      run: sudo apt-get install ccache cmake ninja-build llvm-20-dev libreadline-dev lld g++-14
+    - name: Set up ccache
+      uses: Chocobo1/setup-ccache-action@a4d08616f5b614053bce228ddf881592f69d61d4 # v1.5.9
+      with:
+        install_ccache: false
+        update_packager_index: false
+        prepend_symlinks_to_path: false
+        store_cache: ${{ github.event_name == 'push' }}
+        remove_stale_cache: false
+        ccache_options: |
+          max_size=2G
+    - name: build and install the compiler component
+      run: |
+        cmake -B build -G Ninja -DCMAKE_BUILD_TYPE=Release \
+          -DLLVM_DIR="$(llvm-config-20 --cmakedir)" \
+          -DCMAKE_PREFIX_PATH="$(llvm-config-20 --prefix)" \
+          -DCMAKE_CXX_COMPILER=g++-14 \
+          -DCMAKE_C_COMPILER=gcc-14 \
+          -DCMAKE_C_COMPILER_LAUNCHER=ccache \
+          -DCMAKE_CXX_COMPILER_LAUNCHER=ccache
+        cmake --build build
+        cmake --install build --component compiler --prefix "$PWD/qumir-root"
+        tar -czf qumir-root.tar.gz qumir-root
+    - uses: actions/upload-artifact@v4
+      with:
+        name: qumir-root
+        path: qumir-root.tar.gz
+
+  smoke:
+    needs: [ build, qumirc ]
+    runs-on: ubuntu-latest
+
+    steps:
+    - uses: actions/checkout@v4
+    - name: apt-get update
+      run: sudo apt-get update
+    - name: Install packages
+      run: sudo apt-get install llvm-20 lld liburing2
+    - uses: actions/download-artifact@v4
+      with:
+        path: pkg
+    - name: unpack
+      run: |
+        tar -xzf pkg/server/server.tar.gz -C pkg
+        tar -xzf pkg/qumir-root/qumir-root.tar.gz -C pkg
+    - name: start the server
+      run: |
+        pkg/service/server --port 8080 \
+          --static-dir service/static --examples-dir examples \
+          --binary-dir "$PWD/pkg/qumir-root/bin" \
+          --qumir-runtime "$PWD/pkg/qumir-root/share/qumir/js" > server.log 2>&1 &
+        for i in $(seq 30); do
+          curl -sf localhost:8080/api/version && break
+          sleep 1
+        done
+    - name: check the endpoints
+      run: |
+        curl -sf localhost:8080/api/version
+        curl -sf localhost:8080/api/examples | grep -q '"'
+        curl -sf localhost:8080/runtime/loader.js | grep -q export
+        printf 'алг\nнач\n    вывод "Привет", нс\nкон\n' > hello.kum
+        curl -sf -X POST -H 'Content-Type: text/plain' --data-binary @hello.kum \
+          localhost:8080/api/compile-wasm -o hello.wasm
+        head -c 4 hello.wasm | grep -q wasm
+    - name: server log
+      if: failure()
+      run: cat server.log
