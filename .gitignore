@@ -66,3 +66,11 @@ vcpkg_installed/
 # test output & cache
 Testing/
 .cache/
+
+# From the qumir .gitignore: npm packages, Python caches of tools/, editors
+node_modules/
+__pycache__/
+.DS_Store
+.vscode
+# Local browser checks and their artifacts.
+test-excluded/
