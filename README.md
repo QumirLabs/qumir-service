@@ -89,8 +89,8 @@ commit. The package depends on `qumir (>= 1.1.0)` and installs:
   `/usr/share/qumir-service/examples`;
 - the systemd unit `qumir-service.service`, which runs as the `qumir` user
   (created by `postinst`) and keeps shared links in
-  `QUMIR_DATA_DIR/shared` (default `/var/lib/qumir-data`, created by the
-  administrator).
+  `QUMIR_DATA_DIR/shared` (default `/var/lib/qumir-data`, created by `postinst`
+  and owned by `qumir`).
 
 ## Checks
 
