@@ -580,6 +580,14 @@ private:
         std::string dst;
         std::string contentType = "application/wasm";
         dst = src + ".wasm";
+        // Removes the files also when sending the response throws because the client has gone.
+        struct TRemoveOnExit {
+            std::string Src, Dst;
+            ~TRemoveOnExit() {
+                std::remove(Src.c_str());
+                std::remove(Dst.c_str());
+            }
+        } removeOnExit{src, dst};
         auto debug = FindHeader(request, "X-Qumir-Debug-Points");
         const bool debugPoints = debug != request.Headers().end() && debug->second == "1";
         if (debugPoints) {
@@ -616,8 +624,6 @@ private:
             co_await response.SendHeaders();
             co_await response.WriteBodyFull(content);
         }
-        std::remove(src.c_str());
-        std::remove(dst.c_str());
     }
 
     TFuture<void> ServeShare(const TRequest& request, TResponse& response) {
