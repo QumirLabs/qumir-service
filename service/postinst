@@ -10,7 +10,11 @@ if [ "$1" = "configure" ]; then
                 --gecos "Qumir playground service" \
                 qumir
     fi
-    install -d -o qumir -g qumir -m 0755 /var/lib/qumir-data /var/lib/qumir-data/shared
+    # The administrator may have prepared the data directory where chown is not
+    # allowed, so directories that already exist are left as they are.
+    for d in /var/lib/qumir-data /var/lib/qumir-data/shared; do
+        [ -d "$d" ] || install -d -o qumir -g qumir -m 0755 "$d"
+    done
 fi
 
 if [ -d /run/systemd/system ]; then
